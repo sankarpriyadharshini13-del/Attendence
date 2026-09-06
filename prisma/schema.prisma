@@ -1,0 +1,51 @@
+// AttendTrack — Prisma schema
+// Default provider is SQLite so the project runs with zero external
+// setup. SQLite does not support native enums, so `status` is a
+// String constrained in application code to "PRESENT" | "ABSENT".
+//
+// To use PostgreSQL (including Supabase): set provider = "postgresql"
+// below, point DATABASE_URL at your Postgres instance, and
+// (optionally) convert `status` to a real `enum Status { PRESENT
+// ABSENT }`.
+//
+// Supabase specifically: it fronts Postgres with PgBouncer for
+// pooled connections, which Prisma's migration engine can't run
+// migrations through. That's what `directUrl` below is for — see
+// the "Using Supabase" section in README.md for exact steps.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Employee {
+  employee_id    Int          @id @default(autoincrement())
+  employee_code  String       @unique
+  name           String
+  department     String
+  designation    String
+  phone          String?
+  joining_date   DateTime     @default(now())
+  is_active      Boolean      @default(true)
+  created_at     DateTime     @default(now())
+  attendances    Attendance[]
+
+  @@index([is_active])
+}
+
+model Attendance {
+  id          Int      @id @default(autoincrement())
+  employee_id Int
+  employee    Employee @relation(fields: [employee_id], references: [employee_id], onDelete: Cascade)
+  date        DateTime
+  status      String // "PRESENT" | "ABSENT"
+  created_at  DateTime @default(now())
+
+  @@unique([employee_id, date])
+  @@index([date])
+}
