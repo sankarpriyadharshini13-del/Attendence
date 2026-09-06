@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, X as Cross, Pencil } from "lucide-react";
+import { Check, X as Cross, Pencil, Trash2 } from "lucide-react";
 import { avatarColor, initials } from "@/lib/utils";
 import type { EmployeeWithStatus } from "@/lib/types";
 
@@ -8,10 +8,11 @@ interface Props {
   employee: EmployeeWithStatus;
   onToggle: () => void;
   onOpenPie: () => void;
+  onDelete: () => void;
   toggling: boolean;
 }
 
-export default function EmployeeCard({ employee, onToggle, onOpenPie, toggling }: Props) {
+export default function EmployeeCard({ employee, onToggle, onOpenPie, onDelete, toggling }: Props) {
   const status = employee.status;
   const avatar = avatarColor(employee.employee_id);
   return (
@@ -35,6 +36,14 @@ export default function EmployeeCard({ employee, onToggle, onOpenPie, toggling }
         aria-label="Edit"
       >
         <Pencil size={15} />
+      </button>
+
+      <button
+        onClick={onDelete}
+        className="hidden shrink-0 rounded-lg p-2 text-slate-400 hover:bg-slate-50 sm:block"
+        aria-label="Delete"
+      >
+        <Trash2 size={15} />
       </button>
 
       <button

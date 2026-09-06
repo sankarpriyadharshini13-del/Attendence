@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AlertTriangle, ChevronRight, Users, CalendarDays } from "lucide-react";
 import EmployeeCard from "@/components/EmployeeCard";
 import EmployeePiePopup from "@/components/EmployeePiePopup";
+import DeleteConfirmModal from "@/components/DeleteConfirmModal";
 import { ListSkeleton } from "@/components/Skeleton";
 import { EVENTS, broadcast } from "@/components/ModalProvider";
 import { useToast } from "@/components/Toast";
@@ -29,6 +30,8 @@ export default function HomePage() {
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [missing, setMissing] = useState<{ count: number; dates: string[] }>({ count: 0, dates: [] });
   const [pieEmployee, setPieEmployee] = useState<EmployeeDTO | null>(null);
+  const [employeeToDelete, setEmployeeToDelete] = useState<EmployeeDTO | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [month, setMonth] = useState(monthKeyOf(today));
   const [summary, setSummary] = useState<MonthSummary | null>(null);
@@ -107,6 +110,28 @@ export default function HomePage() {
       toast.show("Could not update attendance", "error");
     } finally {
       setTogglingId(null);
+    }
+  };
+
+  const deleteEmployee = async () => {
+    if (!employeeToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/employees?id=${employeeToDelete.employee_id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) throw new Error();
+
+      setEmployees((prev) => prev.filter((e) => e.employee_id !== employeeToDelete.employee_id));
+      toast.show(`${employeeToDelete.name} has been deleted`);
+      broadcast(EVENTS.EMPLOYEES_CHANGED);
+      setEmployeeToDelete(null);
+    } catch {
+      toast.show("Could not delete employee", "error");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -202,6 +227,7 @@ export default function HomePage() {
               toggling={togglingId === emp.employee_id}
               onToggle={() => toggle(emp.employee_id)}
               onOpenPie={() => setPieEmployee(emp)}
+              onDelete={() => setEmployeeToDelete(emp)}
             />
           ))}
         </div>
@@ -259,6 +285,16 @@ export default function HomePage() {
 
       {pieEmployee && (
         <EmployeePiePopup employee={pieEmployee} initialDate={today} onClose={() => setPieEmployee(null)} />
+      )}
+
+      {employeeToDelete && (
+        <DeleteConfirmModal
+          employeeName={employeeToDelete.name}
+          employeeCode={employeeToDelete.employee_code}
+          isDeleting={isDeleting}
+          onConfirm={deleteEmployee}
+          onCancel={() => setEmployeeToDelete(null)}
+        />
       )}
     </div>
   );

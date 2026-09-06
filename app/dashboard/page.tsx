@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Bell, Download, FileSpreadsheet, Files, PieChart as PieIcon, Eye, ChevronRight } from "lucide-react";
+import { Bell, Download, FileSpreadsheet, Files, PieChart as PieIcon, Eye, ChevronRight, Trash2 } from "lucide-react";
 import EmployeePiePopup from "@/components/EmployeePiePopup";
+import DeleteConfirmModal from "@/components/DeleteConfirmModal";
 import { ListSkeleton } from "@/components/Skeleton";
 import { useToast } from "@/components/Toast";
+import { EVENTS, broadcast } from "@/components/ModalProvider";
 import { monthLabel, todayKey } from "@/lib/utils";
 import type { EmployeeDTO } from "@/lib/types";
 
@@ -47,6 +49,8 @@ export default function DashboardPage() {
   const [pieEmployee, setPieEmployee] = useState<EmployeeDTO | null>(null);
   const [exports, setExports] = useState<RecentExport[]>([]);
   const [exportingKey, setExportingKey] = useState<string | null>(null);
+  const [employeeToDelete, setEmployeeToDelete] = useState<EmployeeDTO | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     setExports(loadRecentExports());
@@ -85,6 +89,28 @@ export default function DashboardPage() {
       toast.show("Could not generate the report", "error");
     } finally {
       setExportingKey(null);
+    }
+  };
+
+  const deleteEmployee = async () => {
+    if (!employeeToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/employees?id=${employeeToDelete.employee_id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) throw new Error();
+
+      setRows((prev) => prev.filter((e) => e.employee_id !== employeeToDelete.employee_id));
+      toast.show(`${employeeToDelete.name} has been deleted`);
+      broadcast(EVENTS.EMPLOYEES_CHANGED);
+      setEmployeeToDelete(null);
+    } catch {
+      toast.show("Could not delete employee", "error");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -165,13 +191,14 @@ export default function DashboardPage() {
         <ListSkeleton />
       ) : (
         <div className="mb-5 overflow-hidden rounded-2xl bg-white shadow-card">
-          <div className="grid grid-cols-[1fr_70px_60px] gap-2 border-b border-slate-100 px-3.5 py-2 text-[11px] font-bold text-slate-400">
+          <div className="grid grid-cols-[1fr_70px_50px_50px] gap-2 border-b border-slate-100 px-3.5 py-2 text-[11px] font-bold text-slate-400">
             <span>NAME</span>
             <span className="text-center">PRESENT</span>
             <span className="text-center">VIEW</span>
+            <span className="text-center">DELETE</span>
           </div>
           {rows.map((r) => (
-            <div key={r.employee_id} className="grid grid-cols-[1fr_70px_60px] items-center gap-2 border-b border-slate-50 px-3.5 py-2.5 last:border-none">
+            <div key={r.employee_id} className="grid grid-cols-[1fr_70px_50px_50px] items-center gap-2 border-b border-slate-50 px-3.5 py-2.5 last:border-none">
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold text-slate-900">{r.name}</div>
                 <div className="truncate text-[11px] text-slate-400">{r.employee_code}</div>
@@ -182,6 +209,11 @@ export default function DashboardPage() {
               <div className="flex justify-center">
                 <button onClick={() => setPieEmployee(r)} className="rounded-lg bg-brand-50 p-1.5 text-brand-600 active:scale-90">
                   <Eye size={14} />
+                </button>
+              </div>
+              <div className="flex justify-center">
+                <button onClick={() => setEmployeeToDelete(r)} className="rounded-lg bg-red-50 p-1.5 text-red-600 active:scale-90 hover:bg-red-100">
+                  <Trash2 size={14} />
                 </button>
               </div>
             </div>
@@ -214,6 +246,16 @@ export default function DashboardPage() {
 
       {pieEmployee && (
         <EmployeePiePopup employee={pieEmployee} initialDate={today} onClose={() => setPieEmployee(null)} />
+      )}
+
+      {employeeToDelete && (
+        <DeleteConfirmModal
+          employeeName={employeeToDelete.name}
+          employeeCode={employeeToDelete.employee_code}
+          isDeleting={isDeleting}
+          onConfirm={deleteEmployee}
+          onCancel={() => setEmployeeToDelete(null)}
+        />
       )}
     </div>
   );

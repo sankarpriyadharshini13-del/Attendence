@@ -83,3 +83,35 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ employee }, { status: 201 });
 }
+
+export async function DELETE(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const employeeId = searchParams.get("id");
+
+  if (!employeeId) {
+    return NextResponse.json({ error: "Employee ID is required." }, { status: 400 });
+  }
+
+  const id = parseInt(employeeId, 10);
+  if (isNaN(id)) {
+    return NextResponse.json({ error: "Invalid employee ID." }, { status: 400 });
+  }
+
+  const employee = await prisma.employee.findUnique({
+    where: { employee_id: id },
+  });
+
+  if (!employee) {
+    return NextResponse.json({ error: "Employee not found." }, { status: 404 });
+  }
+
+  // Soft delete: set is_active to false
+  const updated = await prisma.employee.update({
+    where: { employee_id: id },
+    data: { is_active: false },
+  });
+
+  await cacheDelByPrefix(EMPLOYEES_CACHE_KEY);
+
+  return NextResponse.json({ employee: updated });
+}
